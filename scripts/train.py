@@ -46,7 +46,7 @@ DEFAULT_DATA = str(PROJECT_ROOT / "data" / "sviro_yolo")
 DEFAULT_PROJECT = str(PROJECT_ROOT / "runs" / "classify")
 BEST_MODEL_REF_FILE = PROJECT_ROOT / "best_model_path.txt"
 PRETRAINED_MODEL = "yolov8n-cls.pt"
-FREEZE_LAYERS = 10  # Number of backbone layers to freeze in Stage 1
+FREEZE_LAYERS = 9  # Number of backbone layers to freeze in Stage 1
 
 
 def parse_args() -> argparse.Namespace:
@@ -144,7 +144,7 @@ def train_stage(
     project: str,
     name: str,
     patience: int = 30,
-    workers: int = 8,
+    workers: int = 0,
     resume: bool = False,
 ) -> object:
     """Run a single training stage and return the results object.
@@ -258,18 +258,18 @@ def main() -> None:
     # Stage 1 — frozen backbone
     logger.info("🧊 Stage 1 — Frozen backbone (first %d layers) …", FREEZE_LAYERS)
     model = YOLO(PRETRAINED_MODEL)
-    train_stage(
-        model,
-        data=args.data,
-        epochs=args.epochs_stage1,
-        lr0=0.01,
-        freeze=FREEZE_LAYERS,
-        batch=args.batch,
-        imgsz=args.imgsz,
-        device=args.device,
-        project=DEFAULT_PROJECT,
-        name="stage1",
-    )
+    # train_stage(
+    #     model,
+    #     data=args.data,
+    #     epochs=args.epochs_stage1,
+    #     lr0=0.01,
+    #     freeze=FREEZE_LAYERS,
+    #     batch=args.batch,
+    #     imgsz=args.imgsz,
+    #     device=args.device,
+    #     project=DEFAULT_PROJECT,
+    #     name="stage1",
+    # )
 
     stage1_best = Path(DEFAULT_PROJECT) / "stage1" / "weights" / "best.pt"
     if not stage1_best.exists():
