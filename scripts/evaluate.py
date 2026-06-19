@@ -49,7 +49,9 @@ DEFAULT_MODEL = str(PROJECT_ROOT / "runs" / "classify" / "train" / "weights" / "
 DEFAULT_DATA = str(PROJECT_ROOT / "data" / "sviro_yolo" / "test")
 DEFAULT_OUTPUT = str(PROJECT_ROOT / "results")
 
-CLASS_NAMES: List[str] = ["empty", "adult_child", "child_only"]
+# YOLOv8 ImageFolder sorts classes alphabetically during training.
+# The model's internal class order is: 0=adult_child, 1=child_only, 2=empty
+CLASS_NAMES: List[str] = ["adult_child", "child_only", "empty"]
 
 
 def parse_args() -> argparse.Namespace:
@@ -81,6 +83,17 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=DEFAULT_OUTPUT,
         help="Directory to save evaluation outputs.",
+    )
+    parser.add_argument(
+        "--danger-threshold",
+        type=float,
+        default=0.0,
+        help=(
+            "Danger-biased threshold for 'child_only' class. "
+            "If the model's probability for child_only exceeds this value, "
+            "the prediction is forced to child_only regardless of top-1. "
+            "Set to 0.0 to disable (default). Recommended: 0.15 for safety-critical use."
+        ),
     )
     return parser.parse_args()
 
@@ -345,6 +358,16 @@ def main() -> None:
     y_conf: List[float] = []
     all_probs: List[np.ndarray] = []
 
+    # Danger-biased threshold setup
+    danger_threshold = getattr(args, 'danger_threshold', 0.0)
+    danger_class = "child_only"
+    danger_idx = model_class_names.index(danger_class) if danger_class in model_class_names else -1
+    if danger_threshold > 0.0:
+        logger.info(
+            "Danger-biased mode ENABLED: if P(%s) > %.2f, prediction is forced to '%s'",
+            danger_class, danger_threshold, danger_class,
+        )
+
     logger.info("Running inference on %d images (imgsz=%d) …", len(samples), args.imgsz)
     for img_path, true_label in samples:
         results = model.predict(
@@ -359,6 +382,15 @@ def main() -> None:
         pred_name = model_class_names[pred_idx] if pred_idx < len(model_class_names) else str(pred_idx)
         confidence = float(probs.top1conf)
         prob_array = probs.data.cpu().numpy()
+
+        # --- Danger-biased override ---
+        # If the child_only probability exceeds the threshold, force the prediction
+        # to child_only. This maximises recall for the safety-critical class.
+        if danger_threshold > 0.0 and danger_idx >= 0:
+            child_prob = float(prob_array[danger_idx])
+            if child_prob >= danger_threshold:
+                pred_name = danger_class
+                confidence = child_prob
 
         y_true.append(true_label)
         y_pred.append(pred_name)

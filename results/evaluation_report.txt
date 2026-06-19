@@ -1,0 +1,17 @@
+CPD YOLOv8n-cls — Evaluation Report
+==================================================
+Model       : best.pt
+Test images : 500
+Top-1 Acc   : 0.7240
+Top-5 Acc   : 1.0000
+
+Class                Prec    Recall        F1  Support
+----------------------------------------------------
+adult_child        0.8000    0.2222    0.3478       54
+child_only         0.8636    0.4750    0.6129      160
+empty              0.6902    0.9580    0.8023      286
+
+Confusion Matrix:
+[[ 12   0  42]
+ [  3  76  81]
+ [  0  12 274]]
